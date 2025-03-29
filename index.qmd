@@ -1,0 +1,54 @@
+---
+title: Final Project - Change in measles related deaths in children with vaccination coverage
+author: Özlem Türkmen Recen
+---
+
+In this project I aim to investigate relation between measles-related death in children and vaccine hesitency and vaccine coverage
+All data provided from gapminder
+
+
+```{python}
+import plotly.express as px
+import pandas as pd
+import numpy as np
+import country_converter as coco
+```
+
+# Investigating datasets 
+
+## Deaths of measles  in children
+
+```{python}
+death_measles = pd.read_csv('data/measles_deaths_in_children.csv') #Imported data of measles death of children between 1 and 59 months 1990-2019
+death_all = pd.read_csv('data/all_causes_deaths.csv') #Imported data of measles death of children between 1 and 59 months #All deaths only has 2008 so I can't see proportion of masles related death in all death in timeframe
+death_measles_birth = pd.read_csv('data/measles_deaths_in_children_births.csv')
+ #Also only in 2008
+```
+
+## Measles vaccine coverage
+
+```{python}
+mcv1_cov = pd.read_csv('data/mcv1_vacc.csv') #1980-2023
+mcv2_cov = pd.read_csv('data/mcv2_vacc.csv') #2000-2023
+```
+
+## Vaccine hesitency among parents 
+
+```{python}
+safety = pd.read_csv('data/vccin_sfty_dag.csv') #2015-2018 (No data in 2016 and 17)
+importance = pd.read_csv('data/vccine_imptn_dag.csv') #2015-2018 (No data in 2016 and 17)
+effective = pd.read_csv('data/vccin_effect_dag.csv')
+```
+
+## Investigate
+Check the first few rows of each dataset using .head().
+Identify missing values with .isnull().sum().
+Standardize column names if needed.
+
+```{python}
+death_measles.head()
+death_measles_long = death_measles.melt(id_vars='country')
+```
+
+
+
