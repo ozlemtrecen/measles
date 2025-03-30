@@ -1,54 +1,663 @@
 ---
-title: Final Project - Change in measles related deaths in children with vaccination coverage
+title: 'Final Project - Change in measles related deaths in children with vaccination coverage and vaccine hesitency'
 author: Özlem Türkmen Recen
+format: 
+    dashboard:
+        theme: superhero
 ---
 
-In this project I aim to investigate relation between measles-related death in children and vaccine hesitency and vaccine coverage
-All data provided from gapminder
-
-
 ```{python}
+# In this project I aim to investigate relation between measles-related death in children and vaccine hesitency and vaccine coverage.
+# All data provided from gapminder.
+
+## Imports
 import plotly.express as px
 import pandas as pd
 import numpy as np
 import country_converter as coco
-```
+import itables
 
-# Investigating datasets 
+## Investigating datasets 
 
-## Deaths of measles  in children
-
-```{python}
 death_measles = pd.read_csv('data/measles_deaths_in_children.csv') #Imported data of measles death of children between 1 and 59 months 1990-2019
 death_all = pd.read_csv('data/all_causes_deaths.csv') #Imported data of measles death of children between 1 and 59 months #All deaths only has 2008 so I can't see proportion of masles related death in all death in timeframe
 death_measles_birth = pd.read_csv('data/measles_deaths_in_children_births.csv')
  #Also only in 2008
-```
 
-## Measles vaccine coverage
+# Deaths of measles  in children 
 
-```{python}
+death_measles = pd.read_csv('data/measles_deaths_in_children.csv') #Imported data of measles death of children between 1 and 59 months 1990-2019
+death_all = pd.read_csv('data/all_causes_deaths.csv') #Imported data of measles death of children between 1 and 59 months #All deaths only has 2008 so I can't see proportion of masles related death in all death in timeframe
+death_measles_birth = pd.read_csv('data/measles_deaths_in_children_births.csv')
+ #Also only in 2008
+
+ ## Measles vaccine coverage 
+
 mcv1_cov = pd.read_csv('data/mcv1_vacc.csv') #1980-2023
 mcv2_cov = pd.read_csv('data/mcv2_vacc.csv') #2000-2023
-```
 
-## Vaccine hesitency among parents 
-
-```{python}
+# Vaccine hesitency among parents 
 safety = pd.read_csv('data/vccin_sfty_dag.csv') #2015-2018 (No data in 2016 and 17)
 importance = pd.read_csv('data/vccine_imptn_dag.csv') #2015-2018 (No data in 2016 and 17)
 effective = pd.read_csv('data/vccin_effect_dag.csv')
 ```
 
-## Investigate
-Check the first few rows of each dataset using .head().
-Identify missing values with .isnull().sum().
-Standardize column names if needed.
+# Measles related deaths 
 
 ```{python}
-death_measles.head()
-death_measles_long = death_measles.melt(id_vars='country')
+# melting dataframes
+
+#death_measles.head()
+death_measles_long = death_measles.melt(id_vars='country', var_name='years', value_name='deaths')
+#death_measles_long.head()
+
+#death_measles_long['country'].unique()
+
+ ### Created code column from country 
+
+death_measles_long['code'] = coco.convert(death_measles_long['country'], to='ISO3')
+death_measles_long['code'] = death_measles_long['code'].replace('not found', 'SAU')
+death_measles_long = death_measles_long.sort_values(by=['country','years'])
+
+### Changed k to 1000 
+for col in ["deaths"]:
+    has_k = death_measles_long[col].str.contains("k")
+    values = death_measles_long[col].str.replace("k", "")
+    death_measles_long[col] = np.where(has_k, values.astype(float) * 1000, values.astype(float))
+
+```
+
+## Row1 {height = '10%'}
+### Column {width = '50%'}
+:::{.valuebox title = 'All deaths' color="primary"}
+10.960.437
+:::
+```{python}
+#total_measles_deaths = (death_measles_long['deaths'].sum()).round(0)
+```
+
+### Column {width = '50%'}
+:::{.valuebox title = 'Deaths between 2010 and 2019' color="primary"}
+1.102.705
+:::
+```{python}
+#death_measles_long.head()
+#death_measles_long['years'] = pd.to_numeric(death_measles_long['years'], errors='coerce')
+
+#death_measles_long['years'].value_counts()
+#death_measles_long_2010_2019 = death_measles_long.query(' 2010 <= years <=2019')
+#death_measles_long_2010_2019['deaths'].sum()
+``` 
+
+## Row {height = '50%'}
+### Column {width = '50%'}
+```{python}
+#Aggregate deaths by year
+death_measles_long2 = death_measles_long.groupby('years', as_index=False)['deaths'].sum()
+
+# Plot the aggregated data
+px.line(death_measles_long2, x='years', y='deaths', title='Measles-related deaths  by time', labels={'deaths':'Total deathts related with measles', 'years':'Years'})
+
+#death_measles_long.head()
+```
+
+### Column {width = '50%'}
+```{python}
+# Step 1: Add a continent column
+death_measles_long['continent'] = coco.convert(death_measles_long['code'], to='continent')
+
+# Step 2: Aggregate deaths by continent
+deaths_by_continent = death_measles_long.groupby('continent', as_index=False)['deaths'].sum()
+
+# Step 3: Create the bar graph
+fig = px.bar(
+    deaths_by_continent,
+    y='continent',  # Continents on the y-axis
+    x='deaths',  # Total deaths on the x-axis
+    title='Measles-related total deaths by continent',
+    labels={'deaths': 'Total Deaths', 'continent': 'Continent'},
+    color='continent',  # Different colors for each continent
+    text='deaths'  # Show death counts on the bars
+)
+
+# Step 4: Show the bar graph
+fig.show()
 ```
 
 
+## Row {height:'40%'}
+
+```{python}
+# Step 1: Aggregate total deaths by country
+total_deaths_by_country = death_measles_long.groupby('code', as_index=False)['deaths'].sum()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    total_deaths_by_country,
+    locations='code',  # ISO3 country codes
+    color='deaths',  # Color by total deaths
+    hover_name='code',  # Hover information
+    title='Total measles deaths by country',
+    color_continuous_scale='Reds'
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+# Vaccine coverage
+
+```{python}
+mcv1_cov = pd.read_csv('data/mcv1_vacc.csv') #1980-2023
+mcv2_cov = pd.read_csv('data/mcv2_vacc.csv') #2000-2023
+
+#melting dataframe 1
+#mcv1_cov.head()
+
+mcv1_cov_long = mcv1_cov.melt(id_vars='country', var_name='year', value_name='vaccine_coverage')
+
+#convert code
+#mcv1_cov_long.head()
+mcv1_cov_long['code'] = coco.convert(mcv1_cov_long['country'], to='ISO3')
+mcv1_cov_long['code'] = mcv1_cov_long['code'].replace('not found', 'ARE')
+
+#melting dataframe 2
+#mcv2_cov.head()
+
+mcv2_cov_long = mcv2_cov.melt(id_vars='country', var_name='year', value_name='vaccine_coverage')
+
+#mcv2_cov_long.head()
+
+mcv2_cov_long['code'] = coco.convert(mcv2_cov_long['country'], to='ISO3')
+mcv2_cov_long['code'] = mcv2_cov_long['code'].replace('not found', 'ARE')
+
+#merge 2 datasets
+cov12 = pd.merge(mcv1_cov_long, mcv2_cov_long, on=['code'])
+```
+
+## Row valueboxes {height='30%'}
+### Column {width ='50%'}
+:::{.valuebox title = 'Total vaccine coverage of one dose in 2023' color="primary"}
+83.9
+:::
+```{python}
+#mcv1_cov_long.head()
+mcv1_cov_long_2023 = mcv1_cov_long.query('year == "2023"')
+x = mcv1_cov_long_2023['vaccine_coverage'].mean().round(1)
+```
+
+### Column {width ='50%'}
+:::{.valuebox title = 'Total vaccine coverage of two doses in 2023' color="primary"}
+75.2
+:::
+```{python}
+#mcv2_cov_long.head()
+mcv2_cov_long_2023 = mcv2_cov_long.query('year == "2023"')
+y = mcv2_cov_long_2023['vaccine_coverage'].mean().round(1)
+```
+
+## Row 2 vaccine coverage by the time {height='45%'}
+### Column 1 one dose vaccine coverage by the time 
+
+```{python}
+#mcv1_cov_long.head()
+
+mcv1_cov_long['year'] = pd.to_numeric(mcv1_cov_long['year'], errors='coerce')
+
+mcv1_cov_long2 = mcv1_cov_long.groupby('year', as_index=False)['vaccine_coverage'].sum()
+
+px.line(mcv1_cov_long2, x='year', y='vaccine_coverage', title='One dose vaccine coverage by the time', labels={'vaccine_coverage':'Vaccine coverage', 'year': 'Year'})
+```
+
+
+### Column 2 two doses vaccine coverage by the time 
+
+```{python}
+#mcv2_cov_long.head()
+
+mcv2_cov_long['year'] = pd.to_numeric(mcv2_cov_long['year'], errors='coerce')
+
+mcv2_cov_long2 = mcv2_cov_long.groupby('year', as_index=False)['vaccine_coverage'].sum()
+
+px.line(mcv2_cov_long2, x='year', y='vaccine_coverage', title='Two doses vaccine coverage by the time', labels={'vaccine_coverage':'Vaccine coverage', 'year': 'Year'})
+```
+
+
+## Row 3 
+### Colum1 Map of one dose coverage in 2023
+
+```{python}
+# Step 1: Aggregate vaccine coverage by country
+vaccine_coverage_by_country = mcv1_cov_long_2023.groupby('code', as_index=False)['vaccine_coverage'].sum()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    vaccine_coverage_by_country,
+    locations='code',  # ISO3 country codes
+    color='vaccine_coverage',  # Color by vaccine coverage
+    hover_name='code',  # Hover information
+    title='Vaccine coverage of one dose in 2023 by country',
+    color_continuous_scale='Greens'  # Use a green color scale
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+
+### Colum2 Map of two doses coverage in 2023
+
+```{python}
+# Step 1: Aggregate vaccine coverage by country
+vaccine_coverage_by_country2 = mcv2_cov_long_2023.groupby('code', as_index=False)['vaccine_coverage'].sum()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    vaccine_coverage_by_country2,
+    locations='code',  # ISO3 country codes
+    color='vaccine_coverage',  # Color by vaccine coverage
+    hover_name='code',  # Hover information
+    title='Vaccine coverage of two doses in 2023 by country',
+    color_continuous_scale='Greens'  # Use a green color scale
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+# Vaccine hesitency among parents
+
+```{python}
+# Vaccine hesitency among parents 
+safety = pd.read_csv('data/vccin_sfty_dag.csv') #2015-2018 (No data in 2016 and 17)
+importance = pd.read_csv('data/vccine_imptn_dag.csv') #2015-2018 (No data in 2016 and 17)
+effective = pd.read_csv('data/vccin_effect_dag.csv')
+
+#melt
+#safety.head()
+safety_long = safety.melt(id_vars='country', var_name='year', value_name='not_safe_perc')
+#safety_long.head()
+
+#code
+safety_long['code'] = coco.convert(safety_long['country'], to='ISO3')
+safety_long['code'] = safety_long['code'].replace('not found', 'ARE')
+#safety_long.head()
+#safety_long['year'].value_counts()
+
+importance = pd.read_csv('data/vccine_imptn_dag.csv') #2015-2018 (No data in 2016 and 17)
+#melt
+#safety.head()
+importance_long = importance.melt(id_vars='country', var_name='year', value_name='not_safe_perc')
+#safety_long.head()
+
+#code
+importance_long['code'] = coco.convert(importance_long['country'], to='ISO3')
+importance_long['code'] = importance_long['code'].replace('not found', 'ARE')
+
+effective = pd.read_csv('data/vccin_effect_dag.csv')
+effective_long = effective.melt(id_vars='country', var_name='year', value_name='not_safe_perc')
+#safety_long.head()
+
+#code
+effective_long ['code'] = coco.convert(effective_long ['country'], to='ISO3')
+effective_long['code'] = effective_long['code'].replace('not found', 'ARE')
+
+```
+
+## Row valueboxes {height='30%'}
+### Column {width ='33.3%'}
+:::{.valuebox title = 'Proportions of parents think vaccines are not safe' color="primary"}
+10.2
+:::
+```{python}
+a = safety_long['not_safe_perc'].mean().round(1)
+```
+
+### Column {width ='33.3%'}
+:::{.valuebox title = 'Proportions of parents think vaccines are not important' color="primary"}
+3.9
+:::
+```{python}
+b = importance_long['not_safe_perc'].mean().round(1)
+```
+
+### Column {width ='33.3%'}
+:::{.valuebox title = 'Proportions of parents think vaccines are not effective' color="primary"}
+6.8
+:::
+```{python}
+c = effective_long ['not_safe_perc'].mean().round(1)
+```
+
+## Row {height='30%'} Bar charts
+### Column {width = '33.3'} safety
+
+```{python}
+# Step 1: Aggregate the data by year
+safety_by_year = safety_long.groupby('year', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the bar chart
+fig = px.bar(
+    safety_by_year,
+    x='year',  # Years on the x-axis
+    y='not_safe_perc',  # Percentage on the y-axis
+    title='Proportion of parents who think vaccines <br> are not safe (2015-2018)',
+    labels={'not_safe_perc': 'Percentage (%)', 'year': 'Year'},
+    color='year',  # Different colors for each year
+    text='not_safe_perc'  # Show percentage values on the bars
+)
+
+# Step 3: Show the bar chart
+fig.show()
+```
+
+### Column {width = '33.3'} importance
+
+```{python}
+# Step 1: Aggregate the data by year
+importance_by_year = importance_long.groupby('year', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the bar chart
+fig = px.bar(
+    importance_by_year,
+    x='year',  # Years on the x-axis
+    y='not_safe_perc',  # Percentage on the y-axis
+    title='Proportion of parents who think vaccines <br> are not important (2015-2018)',
+    labels={'not_safe_perc': 'Percentage (%)', 'year': 'Year'},
+    color='year',  # Different colors for each year
+    text='not_safe_perc'  # Show percentage values on the bars
+)
+
+# Step 3: Show the bar chart
+fig.show()
+```
+
+### Column {width = '33.3'} effectiveness
+
+```{python}
+# effective_long
+# Step 1: Aggregate the data by year
+effective_by_year = effective_long.groupby('year', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the bar chart
+fig = px.bar(
+    effective_by_year,
+    x='year',  # Years on the x-axis
+    y='not_safe_perc',  # Percentage on the y-axis
+    title='Proportion of parents who think vaccines <br>are not effective (2015-2018)',
+    labels={'not_safe_perc': 'Percentage (%)', 'year': 'Year'},
+    color='year',  # Different colors for each year
+    text='not_safe_perc'  # Show percentage values on the bars
+)
+
+# Step 3: Show the bar chart
+fig.show()
+```
+
+## Row 3 maps safe important effective
+### Column  {width = '33.3'} safe
+
+```{python}
+# Step 1: Aggregate the data by country
+safety_by_country = safety_long.groupby('code', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    safety_by_country,
+    locations='code',  # ISO3 country codes
+    color='not_safe_perc',  # Color by percentage of hesitancy
+    hover_name='code',  # Hover information
+    title='Global map of vaccine safety hesitancy',
+    color_continuous_scale='Reds',  # Use a red color scale
+    labels={'not_safe_perc': 'Percentage of Hesitancy'}
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+### Column  {width = '33.3'} important
+
+```{python}
+# Step 1: Aggregate the data by country
+importance_by_country = importance_long.groupby('code', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    importance_by_country,
+    locations='code',  # ISO3 country codes
+    color='not_safe_perc',  # Color by percentage of hesitancy
+    hover_name='code',  # Hover information
+    title='Global map of vaccine importance hesitancy',
+    color_continuous_scale='Reds',  # Use a red color scale
+    labels={'not_safe_perc': 'Percentage of Hesitancy'}
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+### Column  {width = '33.3'} effective
+```{python}
+# Step 1: Aggregate the data by country
+effective_by_country = effective_long.groupby('code', as_index=False)['not_safe_perc'].mean()
+
+# Step 2: Create the choropleth map
+fig = px.choropleth(
+    effective_by_country,
+    locations='code',  # ISO3 country codes
+    color='not_safe_perc',  # Color by percentage of hesitancy
+    hover_name='code',  # Hover information
+    title='Global map of vaccine effectiveness hesitancy',
+    color_continuous_scale='Reds',  # Use a red color scale
+    labels={'not_safe_perc': 'Percentage of Hesitancy'}
+)
+
+# Step 3: Show the map
+fig.show()
+```
+
+# Vaccine coverage and measles-related deaths
+
+## Row 2 dot plot MC! and 2 {height ='40%'}
+### column1 MCV1 coverage and deaths
+```{python}
+# Step 1: Ensure the 'year' column is numeric in both datasets
+mcv1_cov_long['year'] = pd.to_numeric(mcv1_cov_long['year'], errors='coerce')
+death_measles_long['years'] = pd.to_numeric(death_measles_long['years'], errors='coerce')
+
+# Step 2: Merge the datasets on 'code' and 'year'
+merged_data = pd.merge(
+    mcv1_cov_long,
+    death_measles_long,
+    left_on=['code', 'year'],
+    right_on=['code', 'years'],
+    how='inner'
+)
+#merged_data.head()
+# Step 3: Create the dot plot
+fig = px.scatter(
+    merged_data,
+    x='vaccine_coverage',  # MCV1 vaccine coverage
+    y='deaths',  # Measles-related deaths
+    color='continent',  # Color by continent
+    title='Relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths'}
+)
+
+# Step 4: Show the plot
+fig.show()
+```
+
+### column2 MCV2 coverage and deaths
+```{python}
+
+# Step 1: Ensure the 'year' column is numeric in both datasets
+mcv2_cov_long['year'] = pd.to_numeric(mcv2_cov_long['year'], errors='coerce')
+death_measles_long['years'] = pd.to_numeric(death_measles_long['years'], errors='coerce')
+
+# Step 2: Merge the datasets on 'code' and 'year'
+merged_data2 = pd.merge(
+    mcv2_cov_long,
+    death_measles_long,
+    left_on=['code', 'year'],
+    right_on=['code', 'years'],
+    how='inner'
+)
+#merged_data.head()
+# Step 3: Create the dot plot
+fig = px.scatter(
+    merged_data2,
+    x='vaccine_coverage',  # MCV2 vaccine coverage
+    y='deaths',  # Measles-related deaths
+    color='continent',  # Color by continent
+    title='Relationship between MCV2 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV2 coverage (%)', 'deaths': 'Measles-related deaths'}
+)
+
+# Step 4: Show the plot
+fig.show()
+
+```
+
+## Row 3 tabsets {.tabset height='30%'}
+
+### Africa
+```{python}
+#Filter data for Africa
+africa_data = merged_data[merged_data['continent'] == 'Africa']
+# Create the scatter plot
+fig = px.scatter(
+    africa_data,
+    x='vaccine_coverage',  # MCV1 vaccine coverage
+    y='deaths',  # Measles-related deaths
+    title='Africa: relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths', 'country_x':'Countries'},
+    color='country_x'  # Different colors for each country
+)
+# Show the plot
+fig.show()
+```
+
+### Asia
+
+```{python}
+# Filter data for Asia
+asia_data = merged_data[merged_data['continent'] == 'Asia']
+
+# Create the scatter plot
+fig = px.scatter(
+    asia_data,
+    x='vaccine_coverage',
+    y='deaths',
+    title='Asia: relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths', 'country_x':'Countries'},
+    color='country_x'
+)
+
+fig.show()
+```
+
+### Europe
+
+```{python}
+# Filter data for Asia
+europe_data = merged_data[merged_data['continent'] == 'Europe']
+
+# Create the scatter plot
+fig = px.scatter(
+    europe_data,
+    x='vaccine_coverage',
+    y='deaths',
+    title='Europe: relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths', 'country_x':'Countries'},
+    color='country_x'
+)
+
+fig.show()
+```
+
+### Americas
+```{python}
+# Filter data for Asia
+americas_data = merged_data[merged_data['continent'] == 'America']
+
+# Create the scatter plot
+fig = px.scatter(
+    americas_data,
+    x='vaccine_coverage',
+    y='deaths',
+    title='Americas: relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths', 'country_x':'Countries'},
+    color='country_x'
+)
+
+fig.show()
+```
+
+### Oceania
+```{python}
+# Filter data for Asia
+oceania_data = merged_data[merged_data['continent'] == 'Oceania']
+
+# Create the scatter plot
+fig = px.scatter(
+    oceania_data,
+    x='vaccine_coverage',
+    y='deaths',
+    title='Oceania: relationship between MCV1 coverage and measles-related deaths',
+    labels={'vaccine_coverage': 'MCV1 coverage (%)', 'deaths': 'Measles-related deaths', 'country_x':'Countries'},
+    color='country_x'
+)
+
+fig.show()
+```
+
+# Dataset overview
+## Datasets {.tabset}
+
+### Measles-related deaths dataset
+
+```{python}
+itables.show(death_measles, caption="Measles-related deaths dataset", buttons=["csvHtml5"])
+```
+
+### MCV1 coverage dataset
+
+```{python}
+itables.show(mcv1_cov, caption="MCV1 coverage dataset", buttons=["csvHtml5"])
+```
+
+### MCV2 coverage dataset
+
+```{python}
+itables.show(mcv2_cov, caption="MCV2 coverage dataset", buttons=["csvHtml5"])
+```
+
+### Hesitency about safety dataset
+
+```{python}
+itables.show(safety, caption="Hesitency about safety dataset", buttons=["csvHtml5"])
+```
+
+### Hesitency about importance dataset
+
+```{python}
+itables.show(importance, caption="Hesitency about importance dataset", buttons=["csvHtml5"])
+```
+### Hesitency about effectiveness dataset
+
+```{python}
+itables.show(effective, caption="Hesitency about effectiveness dataset", buttons=["csvHtml5"])
+```
+
+
+
+# ABOUT
+
+
+
+This data comes from the python `plotly.express` library’s `gapminder` dataset, which is originally sourced from the Gapminder Foundation.
+
+The Gapminder Foundation is a non-profit venture that promotes sustainable global development and achievement of the United Nations Millennium Development Goals by increasing use and understanding of statistics and other information about social, economic, and environmental development.
 

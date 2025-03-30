@@ -16,3 +16,4 @@ itables
 kaleido
 ipykernel
 pytinytex 
+country-converter
