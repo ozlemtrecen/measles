@@ -653,7 +653,7 @@ itables.show(effective, caption="Hesitency about effectiveness dataset", buttons
 
 
 
-# ABOUT
+# About
 
 
 
